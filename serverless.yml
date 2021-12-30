@@ -1,0 +1,37 @@
+service: merlin
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  environment:
+    ETHERSCAN_KEY: ${self:custom.secrets.etherscan.api_key}
+
+package:
+  exclude:
+    - node_modules/**
+
+plugins:
+  - serverless-domain-manager
+  - serverless-plugin-include-dependencies
+  - serverless-api-gateway-caching
+
+custom:
+  secrets: ${file(secrets.yml)}
+  customDomain:
+    domainName: "wenmerl.in"
+    certificateName: "wenmerl.in"
+    createRoute53Record: true
+  apiGatewayCaching:
+    enabled: true
+    ttlInSeconds: 300
+
+functions:
+  responder:
+    handler: responder.handler
+    events:
+      - http:
+          path: /
+          method: get
+          caching:
+            enabled: true
