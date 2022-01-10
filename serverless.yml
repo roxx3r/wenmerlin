@@ -28,7 +28,7 @@ custom:
 
 functions:
   responder:
-    handler: responder.handler
+    handler: src/responder.handler
     events:
       - http:
           path: /
