@@ -47,21 +47,30 @@ const FEE_QUERY = `query fees($startBlock: Int!) {
 }`
 
 module.exports.getFees = async (startDate) => {
-  let totalFees = 0;
+  // query all networks
+  const promiseArr = []
 
   for (const network in NETWORKS) {
-      const { subgraph } = NETWORKS[network]
-      const blockNumber = await cryptostats.chainData.getBlockNumber(startDate, network)
-      const params = { variables: { startBlock: blockNumber } }
-      const { startValue, endValue } = await cryptostats.graph.query(subgraph, FEE_QUERY, params)
-      const startFees = startValue.reduce((prev, curr) =>
-          prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn), 0)
-      const endFees = endValue.reduce((prev, curr) =>
-          prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn), 0)
-      const fees = endFees - startFees
-
-      totalFees += fees;
+    const { subgraph } = NETWORKS[network]
+    const blockNumber = await cryptostats.chainData.getBlockNumber(startDate, network)
+    const params = { variables: { startBlock: blockNumber } }
+    const promise = cryptostats.graph.query(subgraph, FEE_QUERY, params)
+    promiseArr.push(promise)
   }
+
+  // aggregate fees
+  let totalFees = 0;
+  const networkQueries = await Promise.all(promiseArr)
+
+  networkQueries.forEach(({ startValue, endValue }) => {
+    const startFees = startValue.reduce((prev, curr) =>
+        prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn), 0)
+    const endFees = endValue.reduce((prev, curr) =>
+        prev + Number(curr.accrueInfoFeesEarned) + Number(curr.accrueInfoFeesWithdrawn), 0)
+    const fees = endFees - startFees
+
+    totalFees += fees;
+  })
 
   return totalFees
 }
