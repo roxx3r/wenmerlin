@@ -18,22 +18,18 @@ module.exports.formatDate = (number) => {
 }
 
 module.exports.formatPercent = (number) => {
-  const amount = (+number) / 1000000000000000000
-
-  return 100 * (amount / 10_000_000) + '%'
+  return 100 * (+number / 10_000_000) + '%'
 }
 
 module.exports.formatNumber = (number) => {
-  const amount = (+number) / 1000000000000000000
-
   // Nine Zeroes for Billions
-  return Math.abs(Number(amount)) >= 1.0e9
-    ? (Math.abs(Number(amount)) / 1.0e9).toFixed(2) + 'B'
+  return Math.abs(Number(+number)) >= 1.0e9
+    ? (Math.abs(Number(+number)) / 1.0e9).toFixed(2) + 'B'
     : // Six Zeroes for Millions
-    Math.abs(Number(amount)) >= 1.0e6
-    ? (Math.abs(Number(amount)) / 1.0e6).toFixed(2) + 'M'
+    Math.abs(Number(+number)) >= 1.0e6
+    ? (Math.abs(Number(+number)) / 1.0e6).toFixed(2) + 'M'
     : // Three Zeroes for Thousands
-    Math.abs(Number(amount)) >= 1.0e3
-    ? (Math.abs(Number(amount)) / 1.0e3).toFixed(2) + 'K'
-    : Math.abs(Number(amount))
+    Math.abs(Number(+number)) >= 1.0e3
+    ? (Math.abs(Number(+number)) / 1.0e3).toFixed(2) + 'K'
+    : Math.abs(Number(+number))
 }

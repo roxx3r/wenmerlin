@@ -6,6 +6,13 @@ provider:
   lambdaHashingVersion: 20201221
   environment:
     ETHERSCAN_KEY: ${self:custom.secrets.etherscan.api_key}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:BatchWriteItem
+        - dynamodb:Query
+      Resource:
+        - "Fn::GetAtt": [ merlin, Arn ]
 
 package:
   exclude:
@@ -24,14 +31,36 @@ custom:
     createRoute53Record: true
   apiGatewayCaching:
     enabled: true
-    ttlInSeconds: 300
+    ttlInSeconds: 150
 
 functions:
-  responder:
-    handler: src/responder.handler
+  site:
+    handler: src/lambda-site.handler
     events:
       - http:
           path: /
           method: get
           caching:
             enabled: true
+  fees:
+    handler: src/lambda-fees.handler
+    events:
+      - schedule: rate(2 minutes)
+
+resources:
+  Resources:
+    merlin:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: merlin
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: N
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
