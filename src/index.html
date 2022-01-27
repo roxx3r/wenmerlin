@@ -40,7 +40,7 @@
       text-align: right;
     }
     footer a {
-      color: #333;
+      color: inherit;
     }
     h1 {
       font-size: 62px;
@@ -181,6 +181,16 @@
       }
       .column + .column {
         margin-left: 0;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #222;
+        color: #fff;
+      }
+      p, footer {
+        color: #999;
       }
     }
   </style>
