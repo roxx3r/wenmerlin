@@ -4,3 +4,7 @@ The lambda generates a helpful UI for displaying recent Merlin buybacks and curr
 You can visit the live application at [wenmerl.in](https://wenmerl.in)
 
 Special thanks to [ap0calyp](https://gist.github.com/ap0calyp) for the fee endpoints!
+
+Check out other great community projects:  
+[liquidated.fyi](https://liquidated.fyi/)  
+[byebyedai.money](https://byebyedai.money)
