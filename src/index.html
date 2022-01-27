@@ -32,7 +32,6 @@
       width: 750px;
       margin: 0 auto;
       display: flex;
-      min-height: calc(100vh - 400px);
     }
     footer {
       width: 750px;
@@ -82,6 +81,27 @@
     }
     a {
       color: #f16335;
+    }
+    .notification {
+      position: relative;
+      width: 750px;
+      margin: 0 auto;
+      border: 1px solid #f16335;
+      padding: 20px 20px;
+      box-sizing: border-box;
+      margin-bottom: 100px;
+      /* background: rgba(241, 99, 53, 0.3); */
+    }
+    .notification::after {
+      position: absolute;
+      left: 14px;
+      top: -12px;
+      content: 'January 26, 2022';
+      color: #f16335;
+      font-size: 12px;
+      display: block;
+      background: #F5F5F5;
+      padding: 0 6px;
     }
     .hero {
       display: flex;
@@ -182,6 +202,9 @@
       .column + .column {
         margin-left: 0;
       }
+      .notification {
+        width: 350px;
+      }
     }
 
     @media (prefers-color-scheme: dark) {
@@ -192,6 +215,9 @@
       p, footer {
         color: #999;
       }
+      .notification::after {
+        background-color: #222;
+      }
     }
   </style>
 
@@ -199,6 +225,8 @@
 
 <body>
   <h1>Wen<br>Merlin?</h1>
+
+  <p class="notification">With the passing of <a href="https://forum.abracadabra.money/t/aip-5-abracadabra-team-proposal-get-mim-on-aave/2399" target="_blank">AIP #5</a> the next buyback will be used for bribing Aave votes to include MIM as collatoral. The bribe amount will be capped at 5 million and left over funds will be used to purchase SPELL as normal.</p>
 
   <main>
     <div class="column">
@@ -230,7 +258,7 @@
       <h2>Why Magic Internet Money</h2>
       <p>Magic Internet Money is a stablecoin which aims to be a cross-chain resource for all defi users. The $1 peg is maintained by arbitrage and is fullly collateralized by interest bearing assets making it highly decentralized. MIM adoption is the number one way to return value to Spell stakers.</p>
       <h2>Where can I stake</h2>
-      <p>Staking is available on the Ethereum network using the <a href="https://abracadabra.money" target="_blank">Abracadabra</a> site. It is also possible to trade Spell for sSpell using <a href="https://traderjoexyz.com/" target="_blank">Trader Joe</a> on the Avalanche network.</p>
+      <p>Staking is available on the Ethereum network using the <a href="https://abracadabra.money" target="_blank">Abracadabra</a> site. It is also possible to trade Spell for sSpell using <a href="https://app.sushi.com/en/swap" target="_blank">SushiSwap</a> on the Avalanche network.</p>
     </div>
   </main>
   <footer>
