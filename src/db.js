@@ -36,3 +36,18 @@ module.exports.query = async () => {
 
   return Items
 }
+
+module.exports.blacklist = async () => {
+  const params = {
+    ExpressionAttributeValues: {
+      ':pk': { S: 'blacklist' }
+    },
+    KeyConditionExpression: 'pk = :pk',
+    TableName: 'merlin',
+    ScanIndexForward: false,
+    Limit: 10
+  }
+  const { Items } = await dynamodb.query(params).promise()
+
+  return Items
+}

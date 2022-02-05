@@ -19,7 +19,7 @@ module.exports.getTokenTxs = async () => {
   return response.json()
 }
 
-module.exports.getTokenSupply = async () => {
+module.exports.getTokenSupply = async (blockNo) => {
   const response = await fetch(
     'https://api.etherscan.io/api' +
       '?module=account' +
@@ -27,6 +27,7 @@ module.exports.getTokenSupply = async () => {
       `&address=${MERLIN_ADDRESS}` +
       `&contractaddress=${MIM_ADDRESS}` +
       '&tag=latest' +
+      `&blockno=${blockNo}` +
       `&apikey=${ETHERSCAN_KEY}`
   )
 
