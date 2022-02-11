@@ -8,7 +8,6 @@ const cryptostats = new CryptoStatsSDK()
 
 // consatnts
 const IPFS_CID_ABRACADABRA_ADAPTER = 'QmV3vkgMJ12FXjCHjHABrUQ6kRpUzZ8WwGmzEbCGv7VxgY'
-const EXCHANGE_ADDRESS = '0x27239549dd40e1d60f5b80b0c4196923745b1fd2'
 const MERLIN_ADDRESS = '0xb2c3a9c577068479b1e5119f6b7da98d25ba48f4'
 
 module.exports.handler = async () => {
@@ -18,13 +17,11 @@ module.exports.handler = async () => {
 
   // get last buybacks
   const { result } = await api.getTokenTxs()
-  const blacklistRecords = await db.blacklist()
-  const blacklistArr = blacklistRecords.map(item => item.sk.N)
   const buybacks = result.filter(tx => {
     const mimTx = tx.tokenSymbol === 'MIM'
     const fromMerlin = tx.from === MERLIN_ADDRESS
-    const blacklisted = blacklistArr.includes(tx.timeStamp)
-    return mimTx && fromMerlin && !blacklisted
+    const teamTx = (tx.value / 1e18) < 1_000_000
+    return mimTx && fromMerlin && !teamTx
   })
   const lastFiveBuys = buybacks.slice(-5)
   const feeRecords = lastFiveBuys.map(({ timeStamp: ts, value }) =>
@@ -36,10 +33,10 @@ module.exports.handler = async () => {
   const mimSupplyE18 = Math.round(mimSupply / 1e18)
 
   // get fees since buyback
-  const startDate = new Date(1000 * timeStamp)
+  const startDate = new Date(1000 * timeStamp - 1000)
   const endDate = new Date()
   endDate.setMinutes(endDate.getMinutes() - 10)
-  const feeArr = await feesList.executeQuery('dateRangeTotalFees', startDate, endDate)
+  const feeArr = await feesList.executeQuery('dateRangeProtocolFees', startDate, endDate)
   const totalFees = feeArr.reduce((prev, { result }) => prev + result, 0)
 
   // add latest fees
