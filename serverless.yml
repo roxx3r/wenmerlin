@@ -45,7 +45,7 @@ functions:
   fees:
     handler: src/lambda-fees.handler
     events:
-      - schedule: rate(2 minutes)
+      - schedule: rate(5 minutes)
 
 resources:
   Resources:
