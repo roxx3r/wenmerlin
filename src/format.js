@@ -18,7 +18,7 @@ module.exports.formatDate = (number) => {
 }
 
 module.exports.formatPercent = (number) => {
-  return 100 * (+number / 10_000_000) + '%'
+  return 100 * (+number / 500_000) + '%'
 }
 
 module.exports.formatNumber = (number) => {

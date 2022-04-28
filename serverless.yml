@@ -36,16 +36,22 @@ custom:
 functions:
   site:
     handler: src/lambda-site.handler
+    timeout: 12
     events:
       - http:
           path: /
           method: get
           caching:
             enabled: true
+            cacheKeyParameters:
+              - name: request.querystring.wallet
+
   fees:
     handler: src/lambda-fees.handler
     events:
       - schedule: rate(5 minutes)
+  ratio:
+    handler: src/lambda-ratio.handler
 
 resources:
   Resources:
