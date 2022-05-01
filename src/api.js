@@ -30,7 +30,6 @@ module.exports.getTxReceipt = async (txHash) => {
 }
 
 module.exports.getTokenTx = async (address, tokenAddress) => {
-  console.log(address, tokenAddress)
   const resp = await fetch(`https://api.etherscan.io/api` +
     `?module=account` +
     `&action=tokentx` +

@@ -50,8 +50,6 @@ functions:
     handler: src/lambda-fees.handler
     events:
       - schedule: rate(5 minutes)
-  ratio:
-    handler: src/lambda-ratio.handler
 
 resources:
   Resources:
