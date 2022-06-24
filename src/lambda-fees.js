@@ -9,10 +9,6 @@ const IPFS_CID_ABRACADABRA_ADAPTER = 'QmV3vkgMJ12FXjCHjHABrUQ6kRpUzZ8WwGmzEbCGv7
 const GELATO_CONTRACT = '0x3caca7b48d0573d793d3b0279b5f0029180e83b6'
 const MIM_TOKEN = '0x99d8a9c45b2eca8864373a26d1459e3dff1e17f3'
 const SPELL_TOKEN = '0x090185f2135308bad17527004364ebcc2d37e5f6'
-const FEE_WIDTHDRAW_CONTRACT = '0xb2c3a9c577068479b1e5119f6b7da98d25ba48f4'
-const TRIAGE_CONTRACT = '0x90218033ce26b3d41c45795e903c7989817f0dd7'
-const MSPELL_CONTRACT = '0xbD2fBaf2dc95bD78Cf1cD3c5235B33D1165E6797'
-const SPELL_BUYBACK_WALLET = '0xfddfE525054efaAD204600d00CA86ADb1Cc2ea8a'
 const ETHERSCAN_KEY = process.env.ETHERSCAN_KEY
 
 // services
@@ -25,13 +21,11 @@ const ethersProvider = new ethers.providers.EtherscanProvider(null, ETHERSCAN_KE
 * past buyback amounts and current fees
 **/
 module.exports.handler = async () => {
-  const [ distributionRecord, ] = await Promise.all([
+  await Promise.all([
     handleDistributionRecords(),
     handleBuybackRecords(),
+    handleCurrentFeeRecord()
   ])
-
-  const lastDistributionTs = parseInt(distributionRecord[0].sk)
-  await handleCurrentFeeRecord(lastDistributionTs)
 }
 
 /**
@@ -50,6 +44,7 @@ async function handleDistributionRecords() {
     .map(generateDistributionRecord)
   const distributionRecordsAll = await Promise.all(recordPromises)
   const distributionRecords = distributionRecordsAll
+    .filter(e => !isNaN(e.sspell + e.mspell))
     .filter(e => e.sspell > 0 || e.mspell > 0)
 
   await db.batchWriteDistribution(distributionRecords)
@@ -63,9 +58,12 @@ async function handleDistributionRecords() {
 **/
 async function handleBuybackRecords() {
   const ratioTxArr = await db.getRatioUpdates()
-  const buybackRecordPromises = ratioTxArr.slice(-5).map(generateBuybackRecord)
-  const buybackRecords = await Promise.all(buybackRecordPromises)
+  const buybackRecordPromises = ratioTxArr
+    .slice(-5)
+    .map(generateBuybackRecord)
 
+  let buybackRecords = await Promise.all(buybackRecordPromises)
+  buybackRecords = buybackRecords.filter(r => r !== undefined)
   await db.batchWriteBuyback(buybackRecords)
 
   return buybackRecords
@@ -76,7 +74,9 @@ async function handleBuybackRecords() {
 *
 * @param {Number} ts - starting timestamp
 **/
-async function handleCurrentFeeRecord(ts) {
+async function handleCurrentFeeRecord() {
+  const distributions = await db.getDistributions()
+  const { sk: { N: ts }} = distributions[0]
   const accruedFeeRecord = await generateCurrentFeeRecord(ts)
   const accruedFeeRecords = [accruedFeeRecord]
 
@@ -123,28 +123,32 @@ async function generateDistributionRecord({ hash, timeStamp }) {
 * @return {Object} - buyback record object
 **/
 async function generateBuybackRecord({ tx, timestamp }) {
-  // get mim to spell trade log
-  const ratioReceipt = await ethersProvider.getTransactionReceipt(tx)
-  // WARNING - this will fail if merlin doesn't trade through cow
-  const tradeLog = getTradeLog(ratioReceipt)
+  let amount
 
-  // decode log
-  const [, , sellAmount] = ethers.utils.defaultAbiCoder.decode(
-    ['address', 'address', 'uint256', 'uint256', 'uint256', 'bytes'],
-    tradeLog.data
-  )
+  try {
+    // get mim to spell trade log
+    const ratioReceipt = await ethersProvider.getTransactionReceipt(tx)
+    // WARNING - this will fail if merlin doesn't trade through cow
+    const tradeLog = getTradeLog(ratioReceipt) // failing here
 
-  // calculate amount
-  const mimSoldAmountInt = parseInt(sellAmount._hex)
-  const amount = Math.round(mimSoldAmountInt / 1e18)
+    // decode log
+    const [, , sellAmount] = ethers.utils.defaultAbiCoder.decode(
+      ['address', 'address', 'uint256', 'uint256', 'uint256', 'bytes'],
+      tradeLog.data
+    )
 
-  // return record object
-  return {
-    pk: 'spell-buyback',
-    sk: timestamp,
-    amount,
-    tx
-  }
+    // calculate amount
+    const mimSoldAmountInt = parseInt(sellAmount._hex)
+    amount = Math.round(mimSoldAmountInt / 1e18)
+
+    // return record object
+    return {
+      pk: 'spell-buyback',
+      sk: timestamp,
+      amount,
+      tx
+    }
+  } catch {}
 }
 
 /**
@@ -222,5 +226,6 @@ function getTradeLog(receipt) {
 function filterDistributionTxs(tx) {
   const usesTransferMethod = tx.input.includes('b3f55')
   const usesTriageWallet = tx.input.includes('902180')
-  return usesTransferMethod && usesTriageWallet
+  const isError = tx.isError === '1'
+  return usesTransferMethod && usesTriageWallet && !isError
 }

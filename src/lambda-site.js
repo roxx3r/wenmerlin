@@ -36,7 +36,6 @@ module.exports.handler = async (event) => {
   // interpolate template
   let html = fs.readFileSync('./src/index.html', 'utf8')
   html = interpolateCurrentFees(html, currentFees)
-  html = await interpolateBuybackHtml(html, buybacks)
   html = interpolateEarningsHtml(html, walletObj)
   html = interpolateDistributions(html, distributions, buybacks)
 
@@ -59,32 +58,10 @@ function interpolateCurrentFees(html, currentFeeRecords) {
   let output = html
 
   const recentRecord = currentFeeRecords[0]
-  const currentFees = recentRecord.amount.N
+  let currentFees = parseInt(recentRecord.amount.N)
+  currentFees = currentFees < 0 ? 0 : currentFees
   const currentUsd = format.formatUsd(currentFees)
-  output = output.replace('{{currentFees}}', currentUsd)
-
-  return output
-}
-
-/**
-* interpolate past spell buybacks for chart
-*
-* @param {String} html - html template
-* @param {Array} buybacks = spell buyback records
-* @return {String} - buyback interpolated html string
-**/
-async function interpolateBuybackHtml (html, buybacks) {
-  let output = html
-
-  buybacks.reverse().forEach(({ sk, amount, tx }) => {
-    const barDate = format.formatDate(sk.N)
-    const barPercent = format.formatPercent(amount.N)
-    const barTitle = format.formatNumber(amount.N)
-    output = output.replace('{{barLink}}', tx.S)
-    output = output.replace('{{barPercent}}', barPercent)
-    output = output.replace('{{barDate}}', barDate)
-    output = output.replace('{{barTitle}}', barTitle)
-  })
+  output = output.replace(/{{currentFees}}/g, currentUsd)
 
   return output
 }
@@ -125,33 +102,44 @@ function interpolateEarningsHtml(html, walletObj) {
 function interpolateDistributions(html, distributions, buybacks) {
   let output = html
   let tableRows = ''
-  let lastBuybackPlaced = false
-  const lastBuyback = buybacks.pop()
-  const lastBuybackTs = lastBuyback.sk.N
 
-  distributions.reverse().forEach((record, index) => {
-    const date = format.formatDate(record.sk.N)
-    const mspell = format.formatUsd(record.mspell.N)
-    const sspell = format.formatUsd(record.sspell.N)
+  const collectionArr = distributions.map(record => {
     const tx = record.tx.S
-    tableRows += `<tr>` +
+    const date = record.sk.N
+    const mspell = record.mspell.N
+    const sspell = record.sspell.N
+
+    return { tx, date, type: 'collection', mspell, sspell}
+  })
+
+  const sSpellDistribution = buybacks.map(record => {
+    const tx = record.tx.S
+    const date = record.sk.N
+    const sspell = record.amount.N
+
+    return { tx, date, type: 'buyback', sspell}
+  })
+
+  const allRecords = [...collectionArr, ...sSpellDistribution]
+    .sort((a, b) => a.date - b.date)
+    .splice(-8)
+
+  allRecords.forEach(record => {
+    const tx = record.tx
+    const type = record.type
+    const date = format.formatDate(record.date)
+    const mspell = record.mspell
+      ? format.formatUsd(record.mspell)
+      : ''
+    const sspell = record.sspell
+      ? format.formatUsd(record.sspell)
+      : ''
+
+    tableRows += `<tr class="${type}">` +
       `<td><a href="https://etherscan.io/tx/${tx}" target="_blank">${date}</a></td>` +
+      `<td>${type}</td>` +
       `<td>${mspell}</td><td>${sspell}</td>` +
       `</tr>`
-
-    // if next date is after distribution add divider
-    // if last record add divider
-    // only place divider once
-    const isNewerDistribution = distributions[index + 1]
-      && distributions[index + 1].sk.N > lastBuybackTs
-      && !lastBuybackPlaced
-    const isLastRecord = index === distributions.length - 1
-      && !lastBuybackPlaced
-
-    if (isNewerDistribution || isLastRecord) {
-      tableRows += `<tr><td colspan="3"><span class="buyback-divider"></span></td></tr>`
-      lastBuybackPlaced = true
-    }
   })
 
   output = output.replace('{{distributionRows}}', tableRows)
