@@ -1,3 +1,5 @@
+org: roxx3r
+app: merlin
 service: merlin
 
 provider:
@@ -48,6 +50,7 @@ functions:
 
   fees:
     handler: src/lambda-fees.handler
+    timeout: 120
     events:
       - schedule: rate(5 minutes)
 

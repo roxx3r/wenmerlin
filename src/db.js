@@ -12,7 +12,7 @@ module.exports.getRatioUpdates = async () => {
   const body = JSON.stringify({
     query: `
       {
-        ratioUpdates {
+        ratioUpdates(first: 1000) {
           timestamp
           ratio
           tx
@@ -55,7 +55,7 @@ module.exports.getDistributions = async () => {
     KeyConditionExpression: 'pk = :pk',
     TableName: 'merlin',
     ScanIndexForward: false,
-    Limit: 5
+    Limit: 10
   }
   const { Items } = await dynamodb.query(params).promise()
 
@@ -89,7 +89,7 @@ module.exports.getBuybacks = async () => {
     KeyConditionExpression: 'pk = :pk',
     TableName: 'merlin',
     ScanIndexForward: false,
-    Limit: 5
+    Limit: 10
   }
   const { Items } = await dynamodb.query(params).promise()
 

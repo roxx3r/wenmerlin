@@ -6,7 +6,8 @@ const db = require('./db')
 
 // consatnts
 const IPFS_CID_ABRACADABRA_ADAPTER = 'QmV3vkgMJ12FXjCHjHABrUQ6kRpUzZ8WwGmzEbCGv7VxgY'
-const GELATO_CONTRACT = '0x3caca7b48d0573d793d3b0279b5f0029180e83b6'
+const GELATO_CONTRACT = '0x9cC903e42d3B14981C2109905556207C6527D482'
+const TRIAGE_WALLET = '0x9cab9fdb70f4b024b5916d428fc2b83186359439'
 const MIM_TOKEN = '0x99d8a9c45b2eca8864373a26d1459e3dff1e17f3'
 const SPELL_TOKEN = '0x090185f2135308bad17527004364ebcc2d37e5f6'
 const ETHERSCAN_KEY = process.env.ETHERSCAN_KEY
@@ -37,10 +38,10 @@ module.exports.handler = async () => {
 * for fees distributed to mspell and sspell
 **/
 async function handleDistributionRecords() {
-  const gelatoTxArr = await api.getTxList(GELATO_CONTRACT)
+  const gelatoTxArr = await api.getTokenTx(GELATO_CONTRACT, MIM_TOKEN)
   const recordPromises = gelatoTxArr
     .filter(filterDistributionTxs)
-    .slice(0, 10)
+    .slice(0, 25)
     .map(generateDistributionRecord)
   const distributionRecordsAll = await Promise.all(recordPromises)
   const distributionRecords = distributionRecordsAll
@@ -123,23 +124,16 @@ async function generateDistributionRecord({ hash, timeStamp }) {
 * @return {Object} - buyback record object
 **/
 async function generateBuybackRecord({ tx, timestamp }) {
-  let amount
-
   try {
     // get mim to spell trade log
     const ratioReceipt = await ethersProvider.getTransactionReceipt(tx)
-    // WARNING - this will fail if merlin doesn't trade through cow
-    const tradeLog = getTradeLog(ratioReceipt) // failing here
 
     // decode log
-    const [, , sellAmount] = ethers.utils.defaultAbiCoder.decode(
-      ['address', 'address', 'uint256', 'uint256', 'uint256', 'bytes'],
-      tradeLog.data
+    const [sellAmount] = ethers.utils.defaultAbiCoder.decode(
+      ['uint256'],
+      ratioReceipt.logs[1].data
     )
-
-    // calculate amount
-    const mimSoldAmountInt = parseInt(sellAmount._hex)
-    amount = Math.round(mimSoldAmountInt / 1e18)
+    const amount = Math.round(Number(sellAmount) / 1e18)
 
     // return record object
     return {
@@ -174,45 +168,20 @@ async function generateCurrentFeeRecord(timestamp) {
 
   try {
     feeArr = await feesList.executeQuery('dateRangeProtocolFees', startDate, endDate)
-  } catch (e) {
+  } catch {
     try {
       feeArr = await feesList.executeQuery('dateRangeTotalFees', startDate, endDate)
-    } catch (e) { return }
+    } catch {}
   }
 
   const totalFees = feeArr.reduce((prev, { result }) => prev + result, 0)
-  const stakerRevenue = 0.75
+  const stakerRevenue = 0.5
   const amount = Math.round(totalFees * stakerRevenue)
 
   return {
     pk: 'fees',
     sk: '9999999999',
     amount
-  }
-}
-
-/**
-* Get log for mim to spell trade
-*
-* @param {Object} - transaction receipt
-* @return {Object} - trade log
-**/
-function getTradeLog(receipt) {
-  for (let i = 0; i < receipt.logs.length; i++) {
-    // decode log
-    const [ sellToken, buyToken, sellAmount ] = ethers.utils.defaultAbiCoder.decode(
-      [ 'address', 'address', 'uint256', 'uint256', 'uint256', 'bytes' ],
-      receipt.logs[i].data
-    )
-
-    // verify log is mim for spell trade
-    const isMimTrade = sellToken.toLowerCase() === MIM_TOKEN
-    const isSpellTrade = buyToken.toLowerCase() === SPELL_TOKEN
-    const isMimForSpellTrade = isMimTrade && isSpellTrade
-    if (!isMimForSpellTrade) continue
-
-    // return trade log
-    return receipt.logs[i]
   }
 }
 
@@ -224,8 +193,7 @@ function getTradeLog(receipt) {
 * @return {Boolean} is transaction a distribution
 **/
 function filterDistributionTxs(tx) {
-  const usesTransferMethod = tx.input.includes('b3f55')
-  const usesTriageWallet = tx.input.includes('902180')
+  const toDistributionWallet = tx.to === TRIAGE_WALLET
   const isError = tx.isError === '1'
-  return usesTransferMethod && usesTriageWallet && !isError
+  return toDistributionWallet && !isError
 }
