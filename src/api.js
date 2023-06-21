@@ -37,7 +37,7 @@ module.exports.getTokenTx = async (address, tokenAddress) => {
     `&contractaddress=${tokenAddress}` +
     `&startblock=0` +
     `&endblock=999999999` +
-    `&sort=asc` +
+    `&sort=desc` +
     `&apikey=${ETHERSCAN_KEY}`)
   const json = await resp.json()
 

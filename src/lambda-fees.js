@@ -6,10 +6,10 @@ const db = require('./db')
 
 // consatnts
 const IPFS_CID_ABRACADABRA_ADAPTER = 'QmV3vkgMJ12FXjCHjHABrUQ6kRpUzZ8WwGmzEbCGv7VxgY'
-const GELATO_CONTRACT = '0x9cC903e42d3B14981C2109905556207C6527D482'
-const TRIAGE_WALLET = '0x9cab9fdb70f4b024b5916d428fc2b83186359439'
+const INCH_SPELL_SWAPPER = '0xdFE1a5b757523Ca6F7f049ac02151808E6A52111'
 const MIM_TOKEN = '0x99d8a9c45b2eca8864373a26d1459e3dff1e17f3'
-const SPELL_TOKEN = '0x090185f2135308bad17527004364ebcc2d37e5f6'
+const SPELL_STAKING_REWARD_DISTRIBUTOR = '0x953dab0e64828972853e7faa45634620a40fa479'
+const MSPELL_STAKING = '0xbd2fbaf2dc95bd78cf1cd3c5235b33d1165e6797'
 const ETHERSCAN_KEY = process.env.ETHERSCAN_KEY
 
 // services
@@ -38,15 +38,12 @@ module.exports.handler = async () => {
 * for fees distributed to mspell and sspell
 **/
 async function handleDistributionRecords() {
-  const gelatoTxArr = await api.getTokenTx(GELATO_CONTRACT, MIM_TOKEN)
-  const recordPromises = gelatoTxArr
+  const swapperTxArr = await api.getTokenTx(INCH_SPELL_SWAPPER, MIM_TOKEN)
+  const distributionTxPromises = swapperTxArr
     .filter(filterDistributionTxs)
     .slice(0, 25)
     .map(generateDistributionRecord)
-  const distributionRecordsAll = await Promise.all(recordPromises)
-  const distributionRecords = distributionRecordsAll
-    .filter(e => !isNaN(e.sspell + e.mspell))
-    .filter(e => e.sspell > 0 || e.mspell > 0)
+  const distributionRecords = await Promise.all(distributionTxPromises)
 
   await db.batchWriteDistribution(distributionRecords)
 
@@ -65,6 +62,7 @@ async function handleBuybackRecords() {
 
   let buybackRecords = await Promise.all(buybackRecordPromises)
   buybackRecords = buybackRecords.filter(r => r !== undefined)
+
   await db.batchWriteBuyback(buybackRecords)
 
   return buybackRecords
@@ -87,6 +85,18 @@ async function handleCurrentFeeRecord() {
 }
 
 /**
+*
+**/
+function dHexAdd(addressEncoded) {
+  if (!addressEncoded) return null
+
+  return ethers.utils.defaultAbiCoder.decode(
+    ['address'],
+    addressEncoded
+  )
+}
+
+/**
 * Generate distribution record from transaction
 * by parsing logs from transaction receipts
 * The first two logs in the distribution receipt
@@ -98,8 +108,14 @@ async function handleCurrentFeeRecord() {
 async function generateDistributionRecord({ hash, timeStamp }) {
   // get mim fee log amount
   const receipt = await ethersProvider.getTransactionReceipt(hash)
-  const mSpellFeesInt = parseInt(receipt.logs[2].data)
-  const sSpellFeesInt = parseInt(receipt.logs[3].data)
+  const mSpellLog =receipt.logs.find(
+    ({ topics }) => topics[2] === '0x000000000000000000000000bd2fbaf2dc95bd78cf1cd3c5235b33d1165e6797'
+  )
+  const sSpellLog = receipt.logs.find(
+    ({ topics }) => topics[2] === '0x000000000000000000000000dfe1a5b757523ca6f7f049ac02151808e6a52111'
+  )
+  const mSpellFeesInt = parseInt(mSpellLog.data)
+  const sSpellFeesInt = parseInt(sSpellLog.data)
   const mSpellAmount = Math.round(mSpellFeesInt / 1e18)
   const sSpellAmount = Math.round(sSpellFeesInt / 1e18)
 
@@ -133,7 +149,14 @@ async function generateBuybackRecord({ tx, timestamp }) {
       ['uint256'],
       ratioReceipt.logs[1].data
     )
-    const amount = Math.round(Number(sellAmount) / 1e18)
+
+    let amount = 0
+
+    if (sellAmount > 1e18) {
+      amount = Math.round(Number(sellAmount) / 1e18)
+    } else {
+      amount = Math.round(Number(sellAmount) / 1e6)
+    }
 
     // return record object
     return {
@@ -193,7 +216,7 @@ async function generateCurrentFeeRecord(timestamp) {
 * @return {Boolean} is transaction a distribution
 **/
 function filterDistributionTxs(tx) {
-  const toDistributionWallet = tx.to === TRIAGE_WALLET
+  const toDistributionWallet = tx.from === SPELL_STAKING_REWARD_DISTRIBUTOR
   const isError = tx.isError === '1'
   return toDistributionWallet && !isError
 }
